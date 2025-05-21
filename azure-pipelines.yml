@@ -1,19 +1,35 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
 - main
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'ubuntu-latest'
+
+variables:
+  resourceGroupName: 'rg-deploiement-demo'
+  location: 'canadacentral'
 
 steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: 'NomConnexionAzure'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      echo "=== Déploiement du Storage Account ==="
+      az deployment group create \
+        --resource-group ${{ variables.resourceGroupName }} \
+        --template-file bicep/storage.bicep \
+        --parameters storageAccountName=stgimgdemo containerName=input-images location=${{ variables.location }}
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+      echo "=== Déploiement du Service Bus ==="
+      az deployment group create \
+        --resource-group ${{ variables.resourceGroupName }} \
+        --template-file bicep/servicebus.bicep \
+        --parameters serviceBusNamespaceName=imgbusdemo queueName=image-processing-queue location=${{ variables.location }}
+
+      echo "=== Déploiement de la Function App ==="
+      az deployment group create \
+        --resource-group ${{ variables.resourceGroupName }} \
+        --template-file bicep/functionapp.bicep \
+        --parameters functionAppName=imgfuncdemo planName=plan-img-fn location=${{ variables.location }}
+    displayName: 'Déploiement complet via Bicep'
